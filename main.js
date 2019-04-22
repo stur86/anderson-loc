@@ -10,6 +10,8 @@ function AndersonModel(container) {
     this.J = 2.0;
     this.omegaAvg = 5.0;
     this.omegaSpread = 2.0;
+    this.maxOmegaAvg = 10.0;
+    this.maxOmegaSpread = 5.0;
 
     this.cscales = {
         'Green on wine': {
@@ -30,6 +32,7 @@ function AndersonModel(container) {
         }
     }
     this.colorScale = 'Traffic light';
+    this.colorMode = 'r';
 
     this.init();
 }
@@ -98,7 +101,10 @@ AndersonModel.prototype = {
         var spacing = 100.0 / (this.size - 1);
         var oA = this.omegaAvg;
         var oS = this.omegaSpread;
+        var moA = this.maxOmegaAvg;
+        var moS = this.maxOmegaSpread;
         var cscale = this.cscale;
+        var cmode = this.colorMode;
 
         this.cont.selectAll("circle").data(this.sites)
             .enter()
@@ -111,10 +117,20 @@ AndersonModel.prototype = {
             })
             .attr('r', this.csize)
             .attr('fill', function (d) {
-                if (oS > 0) 
-                    return cscale((d.om - oA) / oS + 0.5).hex();
-                else
-                    return cscale(0.5).hex();                
+                switch(cmode) {
+                    case 'r':
+                        if (oS > 0) 
+                            return cscale((d.om - oA) / 5.0 + 0.5).hex();
+                        else
+                            return cscale(0.5).hex();                
+                        break;
+                    case 'aS':
+                        return cscale((d.om-oA)/moS).hex();
+                        break;
+                    case 'aO':
+                        return cscale(d.om/(moA+moS)).hex();
+                        break;
+                }
             })
             .on('click', function(d) {
                 d.x = 0.8;
@@ -128,19 +144,21 @@ AndersonModel.prototype = {
 
     restart: function () {
         // Just an alias
+        this.stop();
         this.init();
-        this.start(0.05);
+        this.start(0.03);
     },
 
     start: function(dt) {
         var that = this;
         this.interval = setInterval(function() {
-            that.evolve(dt/2); // x2 slowdown factor for clarity
+            that.evolve(dt);
         }, dt*1000); 
     },
 
     stop: function() {
-        clearInterval(this.interval);
+        if (this.interval != null)
+            clearInterval(this.interval);
     },
 
     evolve: function (dt) {
@@ -173,9 +191,10 @@ model.restart()
 var gui = new dat.GUI();
 var csize = gui.add(model, 'size', 5, 15).step(1);
 var cJ = gui.add(model, 'J', 0, 5.0);
-var cOmAvg = gui.add(model, 'omegaAvg', 1.0, 10.0);
-var cOmSpr = gui.add(model, 'omegaSpread', 0.0, 5.0);
+var cOmAvg = gui.add(model, 'omegaAvg', 1.0, model.maxOmegaAvg);
+var cOmSpr = gui.add(model, 'omegaSpread', 0.0, model.maxOmegaSpread);
 var cScale = gui.add(model, 'colorScale', Object.keys(model.cscales));
+var cMode = gui.add(model, 'colorMode', {relative: 'r', absoluteSpread: 'aS', absoluteOmega: 'aO'});
 gui.add(model, 'restart');
 
 csize.onFinishChange(function () {
@@ -191,5 +210,8 @@ cOmSpr.onFinishChange(function () {
     model.restart();
 });
 cScale.onFinishChange(function() {
+    model.restart();
+});
+cMode.onFinishChange(function() {
     model.restart();
 });
