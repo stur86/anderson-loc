@@ -45,6 +45,7 @@ function Site(i, j) {
     this.om = 0;
     this.k = 0;
     this.neighs = [];
+    this.max_x = 0
 }
 
 Site.prototype = {
@@ -106,9 +107,10 @@ AndersonModel.prototype = {
         var cscale = this.cscale;
         var cmode = this.colorMode;
 
-        this.cont.selectAll("circle").data(this.sites)
+        this.cont.selectAll(".main_circle").data(this.sites)
             .enter()
             .append("circle")
+            .classed("main_circle", true)
             .attr('cx', function (d) {
                 return d.i * spacing - 50;
             })
@@ -135,6 +137,39 @@ AndersonModel.prototype = {
             .on('click', function(d) {
                 d.x = 0.8;
             });
+
+        this.cont.selectAll(".max_circle").data(this.sites)
+            .enter()
+            .append("circle")
+            .classed("max_circle", true)
+            .attr('cx', function (d) {
+                return d.i * spacing - 50;
+            })
+            .attr('cy', function (d) {
+                return d.j * spacing - 50;
+            })
+            .attr('r', this.csize)
+            .attr('stroke-width', 0.2)
+            .attr('fill', '#ffffff00')
+            .attr('stroke', function (d) {
+                switch(cmode) {
+                    case 'r':
+                        if (oS > 0) 
+                            return cscale((d.om - oA) / 5.0 + 0.5).hex();
+                        else
+                            return cscale(0.5).hex();                
+                        break;
+                    case 'aS':
+                        return cscale((d.om-oA)/moS).hex();
+                        break;
+                    case 'aO':
+                        return cscale(d.om/(moA+moS)).hex();
+                        break;
+                }
+            })
+            .on('click', function(d) {
+                d.x = 0.8;
+            });            
     },
 
     set_cscale: function(name) {
@@ -174,13 +209,18 @@ AndersonModel.prototype = {
         }
         for (var i = 0; i < this.sites.length; ++i) {
             this.sites[i].x += this.sites[i].v*dt/2.0;
+            if (Math.abs(this.sites[i].x) > this.sites[i].max_x) {
+                this.sites[i].max_x = Math.abs(this.sites[i].x);
+            }
         }
 
         var csize = this.csize;
-        this.cont.selectAll("circle").data(this.sites).attr('r', function (d) {
+        this.cont.selectAll(".main_circle").data(this.sites).attr('r', function (d) {
             return csize * (1 + d.x);
         });
-
+        this.cont.selectAll(".max_circle").data(this.sites).attr('r', function (d) {
+            return csize * (1 + d.max_x);
+        });
     }
 }
 
