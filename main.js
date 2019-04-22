@@ -11,7 +11,25 @@ function AndersonModel(container) {
     this.omegaAvg = 5.0;
     this.omegaSpread = 2.0;
 
-    this.cscale = chroma.scale(['yellow', 'navy']).mode('lch');
+    this.cscales = {
+        'Green on wine': {
+            'bkg': '#592941', 
+            'scale': chroma.scale(['#498467', '#EDE5A6']).mode('lch'),
+        },
+        'Blue and dark': {
+            'bkg': '#4E4B5C',
+            'scale': chroma.scale(['#4381C1', '#A37871']).mode('lrgb'),
+        },
+        'Tropical': {
+            'bkg': '#52414C',
+            'scale': chroma.scale(['#596157', '#E3655B']).mode('hsl'),
+        },
+        'Traffic light': {
+            'bkg': '#362939',
+            'scale':  chroma.scale(['#54BC61', '#E13D36']).mode('hsl'),
+        }
+    }
+    this.colorScale = 'Traffic light';
 
     this.init();
 }
@@ -74,11 +92,14 @@ AndersonModel.prototype = {
         }
 
         // Create the visualisation
+        this.set_cscale(this.colorScale);
+        this.cont.html('');
+
         var spacing = 100.0 / (this.size - 1);
-        var cscale = this.cscale;
         var oA = this.omegaAvg;
         var oS = this.omegaSpread;
-        this.cont.html('');
+        var cscale = this.cscale;
+
         this.cont.selectAll("circle").data(this.sites)
             .enter()
             .append("circle")
@@ -98,6 +119,11 @@ AndersonModel.prototype = {
             .on('click', function(d) {
                 d.x = 0.8;
             });
+    },
+
+    set_cscale: function(name) {
+        this.cont.style('background-color', this.cscales[name].bkg);
+        this.cscale = this.cscales[name].scale;
     },
 
     restart: function () {
@@ -149,6 +175,7 @@ var csize = gui.add(model, 'size', 5, 15).step(1);
 var cJ = gui.add(model, 'J', 0, 5.0);
 var cOmAvg = gui.add(model, 'omegaAvg', 1.0, 10.0);
 var cOmSpr = gui.add(model, 'omegaSpread', 0.0, 5.0);
+var cScale = gui.add(model, 'colorScale', Object.keys(model.cscales));
 gui.add(model, 'restart');
 
 csize.onFinishChange(function () {
@@ -161,5 +188,8 @@ cOmAvg.onFinishChange(function () {
     model.restart();
 });
 cOmSpr.onFinishChange(function () {
+    model.restart();
+});
+cScale.onFinishChange(function() {
     model.restart();
 });
