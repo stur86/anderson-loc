@@ -28,9 +28,18 @@ function Site(i, j) {
 
 Site.prototype = {
     set_omega: function (w) {
-        this.om = w;
+        this.om = Math.max(w, 0);
         this.k = w * w;
-    }
+    },
+
+    calc_F: function (J) {
+        var F = -this.k * this.x;
+        for (var i = 0; i < this.neighs.length; ++i) {
+            F += J * (this.neighs[i].x - this.x);
+        }
+
+        return F;
+    }, 
 }
 
 AndersonModel.prototype = {
@@ -48,7 +57,7 @@ AndersonModel.prototype = {
         }
 
         // Now assign the neighbours and frequencies
-        var dn = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+        var dn = [[-1, 0], [1, 0], [0, -1], [0, 1]];
         this.sites = [];
         for (var i = 0; i < this.size; ++i) {
             for (var j = 0; j < this.size; ++j) {
@@ -69,7 +78,8 @@ AndersonModel.prototype = {
         var cscale = this.cscale;
         var oA = this.omegaAvg;
         var oS = this.omegaSpread;
-        var sel = this.cont.selectAll("circle").data(this.sites)
+        this.cont.html('');
+        this.cont.selectAll("circle").data(this.sites)
             .enter()
             .append("circle")
             .attr('cx', function (d) {
@@ -80,26 +90,76 @@ AndersonModel.prototype = {
             })
             .attr('r', this.csize)
             .attr('fill', function (d) {
-                return cscale((d.om-oA)/oS+0.5).hex();
+                if (oS > 0) 
+                    return cscale((d.om - oA) / oS + 0.5).hex();
+                else
+                    return cscale(0.5).hex();                
+            })
+            .on('click', function(d) {
+                d.x = 0.8;
             });
     },
 
     restart: function () {
         // Just an alias
         this.init();
+        this.start(0.05);
+    },
+
+    start: function(dt) {
+        var that = this;
+        this.interval = setInterval(function() {
+            that.evolve(dt/2); // x2 slowdown factor for clarity
+        }, dt*1000); 
+    },
+
+    stop: function() {
+        clearInterval(this.interval);
+    },
+
+    evolve: function (dt) {
+        for (var i = 0; i < this.sites.length; ++i) {
+            this.sites[i].x += this.sites[i].v*dt/2.0;
+        }
+        var forces = [];
+        for (var i = 0; i < this.sites.length; ++i) {
+            forces.push(this.sites[i].calc_F(this.J));
+        }
+        for (var i = 0; i < this.sites.length; ++i) {
+            this.sites[i].v += forces[i]*dt;
+        }
+        for (var i = 0; i < this.sites.length; ++i) {
+            this.sites[i].x += this.sites[i].v*dt/2.0;
+        }
+
+        var csize = this.csize;
+        this.cont.selectAll("circle").data(this.sites).attr('r', function (d) {
+            return csize * (1 + d.x);
+        });
+
     }
 }
 
 var model = new AndersonModel('#main_plot');
+model.restart()
 
 
 var gui = new dat.GUI();
 var csize = gui.add(model, 'size', 5, 15).step(1);
 var cJ = gui.add(model, 'J', 0, 5.0);
 var cOmAvg = gui.add(model, 'omegaAvg', 1.0, 10.0);
-var cOmSpr = gui.add(model, 'omegaSpread', 1.0, 5.0);
+var cOmSpr = gui.add(model, 'omegaSpread', 0.0, 5.0);
 gui.add(model, 'restart');
 
 csize.onFinishChange(function () {
-    console.log(model);
+    model.restart();
+});
+cJ.onFinishChange(function () {
+    model.restart();
+});
+cOmAvg.onFinishChange(function () {
+    model.restart();
+});
+cOmSpr.onFinishChange(function () {
+    model.restart();
 });
